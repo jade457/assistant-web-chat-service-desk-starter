@@ -11,11 +11,14 @@
  * specific language governing permissions and limitations under the License.
  *
  */
+
+import { ServicenowServiceDesk } from './serviceDesks/servicenow/servicenowServiceDesk';
 import { ExampleServiceDesk } from './serviceDesks/exampleServiceDesk';
 import { GenesysServiceDesk } from './serviceDesks/genesys/genesysServiceDesk';
 import { InContactServiceDesk } from './serviceDesks/incontact/inContactServiceDesk';
 import { TwilioFlex } from './serviceDesks/twilio/twilioFlex';
 import { ServiceDesk, ServiceDeskFactoryParameters } from './types/serviceDesk';
+
 
 /**
  * This file exports the methods used by web chat to communicate back and forth with the service desk. It is exposed
@@ -31,11 +34,11 @@ function WebChatServiceDeskFactory(parameters: ServiceDeskFactoryParameters): Se
   return getInstance(parameters);
 }
 
-function getInstance(
-  parameters: ServiceDeskFactoryParameters,
-): TwilioFlex | ExampleServiceDesk | GenesysServiceDesk | InContactServiceDesk {
-  const serviceDeskClass: string = process.env.SERVICE_DESK_CLASS || 'ExampleServiceDesk';
-  const constructors: any = { TwilioFlex, ExampleServiceDesk, GenesysServiceDesk, InContactServiceDesk };
+function getInstance(parameters: ServiceDeskFactoryParameters,): ServicenowServiceDesk | TwilioFlex | ExampleServiceDesk | GenesysServiceDesk | InContactServiceDesk {
+  //const serviceDeskClass: string = process.env.SERVICE_DESK_CLASS || 'ExampleServiceDesk';
+  const serviceDeskClass: string = 'ServicenowServiceDesk';
+  console.log("serviceDeskClass variable: " + serviceDeskClass);
+  const constructors: any = { ServicenowServiceDesk, TwilioFlex, ExampleServiceDesk, GenesysServiceDesk, InContactServiceDesk };
   return new constructors[serviceDeskClass](parameters);
 }
 

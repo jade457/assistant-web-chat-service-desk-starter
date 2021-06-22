@@ -1,0 +1,191 @@
+/**
+ * (C) Copyright IBM Corp. 2020.
+ *
+ * Licensed under the MIT License (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ * https://opensource.org/licenses/MIT
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ */
+
+import axios from 'axios';
+import R from 'ramda';
+
+function populateBody(options){
+  const body = {
+      action: options.action,
+      userId: options.userId,
+      requestId: options.requestId,
+      clientSessionId: options.clientSessionId, 
+      message: {
+        clientMessageId: options.clientMessageId,
+        typed: options.typed,
+        text: options.text
+    }}
+
+  return JSON.stringify(body);
+}
+
+
+
+async function makeRequest(options) {
+  return new Promise((resolve) => {
+    axios(options)
+      .then((output) => {
+        return resolve(R.path(['data'], output));
+      })
+      .catch((output) => {
+        const code = R.pathOr(500, ['response', 'status'], output);
+        const error = R.pathOr('Internal Server Error', ['response', 'statusText'], output);
+        return resolve({ error, code });
+      });
+  });
+}
+
+// const getToken = (config) => {
+//   return new Promise((resolve) => {
+//     const options = {
+//       method: 'POST',
+//       url: `${config.incontact.accessKeyApiUri}/authentication/v1/token/access-key`,
+//       headers: {
+//         'Content-Type': 'application/json',
+//       },
+//       data: {
+//         accessKeyId: config.incontact.accessKeyId,
+//         accessKeySecret: config.incontact.accessKeySecret,
+//       },
+//       responseType: 'json',
+//     };
+
+//     makeRequest(options).then((output) => {
+//       return resolve(output);
+//     });
+//   });
+// };
+
+const getSession = (token, config) => {
+  return new Promise((resolve) => {
+    const options = {
+      method: 'POST',
+      url: `${config.incontact.apiUri}/inContactAPI/services/${config.incontact.version}/contacts/chats`,
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      data: {
+        pointOfContact: config.incontact.pointOfContact,
+        parameters: ['P1', config.incontact.skill, 'P3', 'P4'],
+        mediaType: 3,
+      },
+      responseType: 'json',
+    };
+
+    makeRequest(options).then((output) => {
+      return resolve(output);
+    });
+  });
+};
+
+async function startLASession(config) {
+  return new Promise((resolve) => {
+
+    const bodyParams = {action: "", 
+                  userId: "guest", 
+                  clientSessionId: chatSessionId, 
+                  requestId: "ABC-123",
+                  clientMessageId: "ABC-123",
+                  typed: true,
+                  text: "this is a message."
+                }
+
+    const options = {
+      method: 'POST',
+      url: `${config.servicenow.apiUri}/api/sn_va_as_service/bot/integration`,
+      headers: {
+        Accept: 'application/json', 'Content-Type': 'application/json'
+      },
+      data: populateBody(bodyParams)
+    };
+
+    makeRequest(options).then((output) => {
+      return resolve(output);
+    });
+  });
+
+}
+
+const getMessage = (token, clientSessionId, config) => {
+  return new Promise((resolve) => {
+    const options = {
+      method: 'GET',
+      url: `${config.servicenow.apiUri}/inContactAPI/services/${config.incontact.version}/contacts/chats/${chatSessionId}?timeout=10`,
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      responseType: 'json',
+    };
+
+    makeRequest(options).then((output) => {
+      return resolve(output);
+    });
+  });
+};
+
+const postMessage = (action, clientSessionId, label, message, config) => {
+  return new Promise((resolve) => {
+    const bodyParams = {action: action, 
+                  userId: label, 
+                  clientSessionId: clientSessionId, 
+                  requestId: "ABC-123",
+                  clientMessageId: "ABC-123",
+                  typed: true,
+                  text: message
+                }
+
+
+    const options = {
+      method: 'POST',
+      url: `${config.servicenow.apiUri}/api/sn_va_as_service/bot/integration`,
+      headers: {
+        Accept: 'application/json', 'Content-Type': 'application/json'
+      },
+      data: populateBody(bodyParams)
+    };
+
+    makeRequest(options).then((output) => {
+      return resolve(output);
+    });
+  });
+};
+
+// const getQueue = async (token, config) => {
+//   return new Promise((resolve) => {
+//     const options = {
+//       method: 'GET',
+//       url: `${config.incontact.apiUri}/inContactAPI/services/${config.incontact.version}/skills/${config.incontact.skill}/activity`,
+//       headers: {
+//         Authorization: `Bearer ${token}`,
+//       },
+//       responseType: 'json',
+//     };
+
+//     makeRequest(options).then((output) => {
+//       return resolve(output);
+//     });
+//   });
+// };
+
+// module.exports = {
+//   // getToken,
+//   // getSession,
+//   // getQueue,
+//   // getMessage,
+//   // postMessage,
+//   // endSession,
+//   startLASession
+// };
+
+export {postMessage, getMessage}
