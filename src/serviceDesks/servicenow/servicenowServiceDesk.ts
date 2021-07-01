@@ -3,7 +3,7 @@ import { User } from '../../types/profiles';
 import { ServiceDesk, ServiceDeskFactoryParameters, ServiceDeskStateFromWAC } from '../../types/serviceDesk';
 import { AgentProfile, ServiceDeskCallback } from '../../types/serviceDeskCallback';
 import { ServicenowSession } from './servicenowTypes';
-import { ServicenowStatus } from './servicenowStatus';
+// import { ServicenowStatus } from './servicenowStatus';
 import { ErrorType } from '../../types/errors';
 import { stringToMessageResponseFormat } from '../../utils';
 import { SingleEntryPlugin } from 'webpack';
@@ -13,52 +13,49 @@ import { SingleEntryPlugin } from 'webpack';
 class ServicenowServiceDesk implements ServiceDesk {
   callback: ServiceDeskCallback;
   state: any;
-  
-  // to-do: look into how to attach a user id to each api request (or client session id)
-  user: User;
-  session: ServicenowSession;
+
+  // will be overwritten with approrpriate user credentials. 
+  user: User = { id: 'guest-1', nickname: 'Guest (user nickname)'};
+  session: ServicenowSession = {clientSessionId: '', currCount: 0, prevCount: 0};
   agent: AgentProfile = { id: 'liveagent', nickname: 'Live Agent' };
   private poller: {stop: boolean};
 
-  // private SERVER_BASE_URL: string = 'https://harvard-live-chat.mybluemix.net';
   private SERVER_BASE_URL: string = process.env.SERVER_BASE_URL || 'http://localhost:3000';
-  
-  // private CF_URL: string = '	https://us-south.functions.appdomain.cloud/api/v1/web/Harvard-CF-Org_Harvard%20-%20Service%20Now%20-%20Space/default/virtualagent';
 
   constructor(parameters: ServiceDeskFactoryParameters) {
     this.callback = parameters.callback;
-    this.user = { id: '' };
   }
 
 
   async startChat(connectMessage: MessageResponse): Promise<void> {
-    console.log('startChat')
+    console.log("startChat");
     const request = await fetch(`${this.SERVER_BASE_URL}/servicenow/start`, {
       method: 'POST',
       headers: { Accept: 'application/json', 'Content-Type': 'application/json'},
-      body: JSON.stringify({ ...this.session, message: "", label: 'User' }),
+      body: JSON.stringify(this.session)
     });
 
-    const status = await request.json();
-    console.log(status);
-    if (status.error){
+    const response = await request.json();
+    if (response.error){
+      // double check what the error would look like from servicenow. 
       this.callback.setErrorStatus({ type: ErrorType.DISCONNECTED, isDisconnected: true });
     }else{
-      await this.startPolling(status);
+      this.session.clientSessionId = response.result.group;
+      this.session.currCount = 0;
+      this.session.prevCount = 0;
+      this.user.id = response.result.opened_by;
+      this.startPolling();
     }
 
     // The before unload event is fired when the window, the document and its resources are about to be unloaded.
-    // window.addEventListener('unload', (event) => {
-    //   navigator.sendBeacon(`${this.SERVER_BASE_URL}/incontact/end`, JSON.stringify(this.session)); // https://golb.hplar.ch/2018/09/beacon-api.html
-    // });
+    window.addEventListener('unload', (event) => {
+      navigator.sendBeacon(`${this.SERVER_BASE_URL}/servicenow/end`, JSON.stringify(this.session)); // https://golb.hplar.ch/2018/09/beacon-api.html
+    });
     return Promise.resolve();
   }
 
   async endChat(): Promise<void> {
-    // Stop polling as we don't want to keep doing it even 
-    // if we fail to tell inContact the chat is over. 
-    // We'll stop the current poller and clear this so we can get a new poller the next time we start polling.
-    console.log('endChat')
+    console.log('endChat');
     if (this.poller) {
       this.poller.stop = true;
       this.poller = undefined;
@@ -67,9 +64,15 @@ class ServicenowServiceDesk implements ServiceDesk {
     const request = await fetch(`${this.SERVER_BASE_URL}/servicenow/end`, {
       method: 'POST',
       headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...this.session, message: '', label: 'User' }),
+      body: JSON.stringify({ ...this.session, message: "", label: this.user.id}),
     });
-    await request.json();
+    const status = await request.json();
+    console.log(status);
+
+    if (status.error){
+      this.callback.setErrorStatus({ type: ErrorType.DISCONNECTED, isDisconnected: true });
+    }
+
     return Promise.resolve();
   }
 
@@ -78,13 +81,11 @@ class ServicenowServiceDesk implements ServiceDesk {
     const request = await fetch(`${this.SERVER_BASE_URL}/servicenow/sendmessage`, {
       method: 'POST',
       headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...this.session, message: message.input.text, label: 'User' }),
+      body: JSON.stringify({ ...this.session, message: message.input.text, label: this.user.id}),
     });
-    const status = await request.json();
-    console.log("MESSAGE STATUS: ");
-    console.log(status);
+    const response = await request.json();
+    console.log(response);
 
-    await this.startPolling(status);
     return Promise.resolve();
   }
   
@@ -92,78 +93,99 @@ class ServicenowServiceDesk implements ServiceDesk {
     this.state = state;
   }
 
-  testFunction() {
-    
-
-  }
-
-  private async startPolling(status: ServicenowStatus): Promise<void> {
+  private async startPolling(): Promise<void> {
+    console.log("started polling.")
     const poller = { stop: false };
     this.poller = poller;
-
-    if (status.status == 'start') {
-      this.callback.agentJoined(this.agent);
-    }
+    let cacheDate = new Date('1900-06-25 16:03:33');
+    // let prevNMsgs = 0;
+    // let currNMsgs = 0;
     
     do {
       try {
-        console.log("polling...")
-        const request = await fetch(`${this.SERVER_BASE_URL}/servicenow/messageresponse`, {
-          method: 'GET',
-          headers: { Accept: 'application/json', 'Content-Type': 'application/json' }
+        const request = await fetch(`${this.SERVER_BASE_URL}/servicenow/get`, {
+          method: 'POST',
+          headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+          body: JSON.stringify(this.session)
         });
 
-        // eslint-disable-next-line no-await-in-loop
+        
+
         const output = await request.json();
-        //poller.stop = true;
-        console.log("SERVICENOW REPSONSE: ");
+        this.session.currCount = output.currCount;
+        this.session.prevCount = output.prevCount;
+        console.log("******FINISHED POST RETRIEVAL REQUEST***********")
+        console.log("/servicenow/get output: ");
         console.log(output);
+        console.log("currCount: " + output.currCount + ", prevCount: " + output.prevCount);
+        console.log("output.status: " + output.status);
 
+
+        if (output.status){
         switch (output.status) {
-          case 'posted':
-            console.log('case: posted')
-            // For production, should change this to load in actual agent profile info
-            // investigate what this line means 
-            for (let i = 0; i < output.messages.length; i++){
-              this.callback.sendMessageToUser(stringToMessageResponseFormat(output.messages[i]), this.agent.id);
+          case 'Active':
+            this.agent = output.agent;
+            this.callback.agentJoined(this.agent);
+            break;
+          case 'Waiting':
+            try {
+              const request = await fetch(`${this.SERVER_BASE_URL}/servicenow/queue`, {
+                method: 'POST',
+                headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+                body: JSON.stringify(this.session),
+              });
+              const output = await request.json();
+              console.log('queue: ' + output.queue);
+              if (output.queue !== undefined) {
+                // Add one since queue value is 0 when there is no line
+                //this.callback.updateAgentAvailability({ position_in_queue: output.queue + 1 });
+                this.callback.updateAgentAvailability({ position_in_queue: output.queue});
+              }
+            } catch (error) {
+              // Do not stop polling when queue call fails.
+              console.error('Unable to retrieve queue information.', error);
             }
-
-            // clear what's at the endpoint by making an empty post request. 
-            const request = await fetch(`${this.SERVER_BASE_URL}/servicenow/messageresponse`, {
-              method: 'POST',
-              headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-              body: JSON.stringify({})
-            });
-
-            poller.stop = true;
             break;
-          case 'waiting':
-            console.log('case: waiting')
-            break;
-            //break;
-          // would this case correspond to takeControl = true field in response? 
           case 'Disconnected':
-            console.log('case: disconnected')
             this.callback.agentEndedChat();
+            poller.stop = true;
             break;
           default:
             break;
         }
+      }
 
-        // if (output.error) {
-        //   this.callback.setErrorStatus({ type: ErrorType.DISCONNECTED, isDisconnected: true });
-        //   poller.stop = true;
-        // }
+        
+        // If there are new messages from agent, relay to user
+        if (output.messages?.length > 0) {
+          let latestDate = new Date(output.response[0].created_on);
+          if (latestDate > cacheDate){
+            for (let i = 0; i < output.messages.length; i++) {
+              if (new Date(output.response[i].created_on) > cacheDate){
+              this.callback.sendMessageToUser(stringToMessageResponseFormat(output.messages[i]), this.agent.id);
+                }
+            }
+          }
+        }
 
-        // // Set updated chatSessionId as provided by service now 
+        cacheDate = new Date(output.response[0].created_on);
+
+      
+
+
+        if (output.error) {
+          this.callback.setErrorStatus({ type: ErrorType.DISCONNECTED, isDisconnected: true });
+          poller.stop = true;
+        }
+
+        // Set updated chatSessionId as provided by service now - shouldn't change. 
         if (output.clientSessionId) {
           this.session.clientSessionId = output.clientSessionId;
         }
 
         
-        await new Promise(r => setTimeout(r, 1000));
+        // await new Promise(r => setTimeout(r, 1000));
       } catch (error) {
-        console.log(error);
         this.callback.setErrorStatus({ type: ErrorType.DISCONNECTED, isDisconnected: true });
         poller.stop = true;
       }

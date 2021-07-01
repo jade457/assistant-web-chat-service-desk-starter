@@ -35,8 +35,7 @@ function WebChatServiceDeskFactory(parameters: ServiceDeskFactoryParameters): Se
 }
 
 function getInstance(parameters: ServiceDeskFactoryParameters,): ServicenowServiceDesk | TwilioFlex | ExampleServiceDesk | GenesysServiceDesk | InContactServiceDesk {
-  //const serviceDeskClass: string = process.env.SERVICE_DESK_CLASS || 'ExampleServiceDesk';
-  const serviceDeskClass: string = 'ServicenowServiceDesk';
+  const serviceDeskClass: string = process.env.SERVICE_DESK_CLASS || 'ExampleServiceDesk';
   console.log("serviceDeskClass variable: " + serviceDeskClass);
   const constructors: any = { ServicenowServiceDesk, TwilioFlex, ExampleServiceDesk, GenesysServiceDesk, InContactServiceDesk };
   return new constructors[serviceDeskClass](parameters);

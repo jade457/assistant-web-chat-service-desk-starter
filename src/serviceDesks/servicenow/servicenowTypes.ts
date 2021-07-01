@@ -14,5 +14,8 @@
 
  export interface ServicenowSession {
     clientSessionId: string;
+    // keep track of number of messages in previous and current session. 
+    currCount: number;
+    prevCount: number;
   }
   

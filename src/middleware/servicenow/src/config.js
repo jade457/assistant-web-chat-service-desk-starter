@@ -27,6 +27,9 @@ const configParameters = {
     pointOfContact: parsed.INCONTACT_POINTOFCONTACT,
     skillId: parsed.INCONTACT_SKILL,
     version: parsed.INCONTACT_VERSION || 'v20.0',
+    queueId: '19bc32ec1bfd37405d22419ead4bcb57',
+    username: 'jadewu-admin',
+    password: 'CK!fF!Ga9W_Zy'
   },
   app: {
     port: process.env.PORT || 3000,

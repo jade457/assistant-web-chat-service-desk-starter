@@ -46,6 +46,8 @@ interface User {
    * A unique identifier for this user.
    */
   id: string;
+
+  nickname: string;
 }
 
-export { AgentProfile, User };
+export { AgentProfile, User};

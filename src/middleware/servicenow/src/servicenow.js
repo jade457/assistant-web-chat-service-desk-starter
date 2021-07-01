@@ -21,12 +21,12 @@ function populateBody(options){
       userId: options.userId,
       requestId: options.requestId,
       clientSessionId: options.clientSessionId, 
+      silentMessage: options.silentMessage,
       message: {
         clientMessageId: options.clientMessageId,
         typed: options.typed,
         text: options.text
     }}
-
   return JSON.stringify(body);
 }
 
@@ -45,27 +45,6 @@ async function makeRequest(options) {
       });
   });
 }
-
-// const getToken = (config) => {
-//   return new Promise((resolve) => {
-//     const options = {
-//       method: 'POST',
-//       url: `${config.incontact.accessKeyApiUri}/authentication/v1/token/access-key`,
-//       headers: {
-//         'Content-Type': 'application/json',
-//       },
-//       data: {
-//         accessKeyId: config.incontact.accessKeyId,
-//         accessKeySecret: config.incontact.accessKeySecret,
-//       },
-//       responseType: 'json',
-//     };
-
-//     makeRequest(options).then((output) => {
-//       return resolve(output);
-//     });
-//   });
-// };
 
 const getSession = (token, config) => {
   return new Promise((resolve) => {
@@ -89,41 +68,94 @@ const getSession = (token, config) => {
   });
 };
 
-async function startLASession(config) {
+const startMessage = (config) => {
+  const authentication = Buffer.from(config.servicenow.username+':'+config.servicenow.password).toString('base64')
   return new Promise((resolve) => {
-
-    const bodyParams = {action: "", 
-                  userId: "guest", 
-                  clientSessionId: chatSessionId, 
-                  requestId: "ABC-123",
-                  clientMessageId: "ABC-123",
-                  typed: true,
-                  text: "this is a message."
-                }
-
     const options = {
       method: 'POST',
-      url: `${config.servicenow.apiUri}/api/sn_va_as_service/bot/integration`,
+      url: `${config.servicenow.apiUri}/api/now/connect/support/queues/${config.servicenow.queueId}/sessions`,
       headers: {
+        Authorization: 'Basic '+authentication,
         Accept: 'application/json', 'Content-Type': 'application/json'
       },
-      data: populateBody(bodyParams)
+      // dummy phrase - eventually pass in what user typed in the WA widget. 
+      data: JSON.stringify({message: 'start live agent conversation'})
+    }
+
+    makeRequest(options).then((output) => {
+      return resolve(output);
+    })
+  })
+}
+
+const getMessage = (clientSessionId, config) => {
+  const authentication = Buffer.from(config.servicenow.username+':'+config.servicenow.password).toString('base64');
+  const group_id = clientSessionId;
+  return new Promise((resolve) => {
+    const options = {
+      method: 'GET',
+      url: `${config.servicenow.apiUri}/api/now/connect/conversations/${group_id}/messages`,
+      headers: {
+        Authorization: 'Basic '+ authentication,
+        Accept: 'application/json', 'Content-Type': 'application/json'
+      }
     };
 
     makeRequest(options).then((output) => {
       return resolve(output);
     });
   });
+};
 
-}
+const postMessage = (clientSessionId, message, config) => {
+  const group_id = clientSessionId;
+  const authentication = Buffer.from(config.servicenow.username+':'+config.servicenow.password).toString('base64')
+  return new Promise((resolve) => {
+    const options = {
+      method: 'POST',
+      url: `${config.servicenow.apiUri}/api/now/connect/conversations/${group_id}/messages`,
+      headers: {
+        Authorization: 'Basic '+authentication,
+        Accept: 'application/json', 'Content-Type': 'application/json'
+      },
+      data: JSON.stringify({message: message})
+    };
 
-const getMessage = (token, clientSessionId, config) => {
+    makeRequest(options).then((output) => {
+      return resolve(output);
+    });
+  });
+};
+
+const getQueue = async (config) => {
+  const authentication = Buffer.from(config.servicenow.username+':'+config.servicenow.password).toString('base64')
   return new Promise((resolve) => {
     const options = {
       method: 'GET',
-      url: `${config.servicenow.apiUri}/inContactAPI/services/${config.incontact.version}/contacts/chats/${chatSessionId}?timeout=10`,
+      url: `${config.servicenow.apiUri}/api/now/connect/support/queues/${config.servicenow.queueId}/sessions`,
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: 'Basic '+authentication,
+        Accept: 'application/json', 'Content-Type': 'application/json'
+      }
+    };
+
+    makeRequest(options).then((output) => {
+      return resolve(output);
+    });
+  });
+};
+
+const getAuth = (config) => {
+  return new Promise((resolve) => {
+    const options = {
+      method: 'POST',
+      url: `${config.incontact.accessKeyApiUri}/authentication/v1/token/access-key`,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      data: {
+        accessKeyId: config.incontact.accessKeyId,
+        accessKeySecret: config.incontact.accessKeySecret,
       },
       responseType: 'json',
     };
@@ -134,58 +166,4 @@ const getMessage = (token, clientSessionId, config) => {
   });
 };
 
-const postMessage = (action, clientSessionId, label, message, config) => {
-  return new Promise((resolve) => {
-    const bodyParams = {action: action, 
-                  userId: label, 
-                  clientSessionId: clientSessionId, 
-                  requestId: "ABC-123",
-                  clientMessageId: "ABC-123",
-                  typed: true,
-                  text: message
-                }
-
-
-    const options = {
-      method: 'POST',
-      url: `${config.servicenow.apiUri}/api/sn_va_as_service/bot/integration`,
-      headers: {
-        Accept: 'application/json', 'Content-Type': 'application/json'
-      },
-      data: populateBody(bodyParams)
-    };
-
-    makeRequest(options).then((output) => {
-      return resolve(output);
-    });
-  });
-};
-
-// const getQueue = async (token, config) => {
-//   return new Promise((resolve) => {
-//     const options = {
-//       method: 'GET',
-//       url: `${config.incontact.apiUri}/inContactAPI/services/${config.incontact.version}/skills/${config.incontact.skill}/activity`,
-//       headers: {
-//         Authorization: `Bearer ${token}`,
-//       },
-//       responseType: 'json',
-//     };
-
-//     makeRequest(options).then((output) => {
-//       return resolve(output);
-//     });
-//   });
-// };
-
-// module.exports = {
-//   // getToken,
-//   // getSession,
-//   // getQueue,
-//   // getMessage,
-//   // postMessage,
-//   // endSession,
-//   startLASession
-// };
-
-export {postMessage, getMessage}
+export {postMessage, getMessage, startMessage, getQueue}
