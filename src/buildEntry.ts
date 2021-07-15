@@ -14,9 +14,6 @@
 
 import { ServicenowServiceDesk } from './serviceDesks/servicenow/servicenowServiceDesk';
 import { ExampleServiceDesk } from './serviceDesks/exampleServiceDesk';
-import { GenesysServiceDesk } from './serviceDesks/genesys/genesysServiceDesk';
-import { InContactServiceDesk } from './serviceDesks/incontact/inContactServiceDesk';
-import { TwilioFlex } from './serviceDesks/twilio/twilioFlex';
 import { ServiceDesk, ServiceDeskFactoryParameters } from './types/serviceDesk';
 
 
@@ -34,10 +31,10 @@ function WebChatServiceDeskFactory(parameters: ServiceDeskFactoryParameters): Se
   return getInstance(parameters);
 }
 
-function getInstance(parameters: ServiceDeskFactoryParameters,): ServicenowServiceDesk | TwilioFlex | ExampleServiceDesk | GenesysServiceDesk | InContactServiceDesk {
+function getInstance(parameters: ServiceDeskFactoryParameters,): ServicenowServiceDesk | ExampleServiceDesk  {
   const serviceDeskClass: string = process.env.SERVICE_DESK_CLASS || 'ExampleServiceDesk';
   console.log("serviceDeskClass variable: " + serviceDeskClass);
-  const constructors: any = { ServicenowServiceDesk, TwilioFlex, ExampleServiceDesk, GenesysServiceDesk, InContactServiceDesk };
+  const constructors: any = { ServicenowServiceDesk, ExampleServiceDesk};
   return new constructors[serviceDeskClass](parameters);
 }
 

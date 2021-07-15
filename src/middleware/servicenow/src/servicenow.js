@@ -76,7 +76,9 @@ const startMessage = (config) => {
       url: `${config.servicenow.apiUri}/api/now/connect/support/queues/${config.servicenow.queueId}/sessions`,
       headers: {
         Authorization: 'Basic '+authentication,
-        Accept: 'application/json', 'Content-Type': 'application/json'
+        Accept: 'application/json', 'Content-Type': 'application/json',
+        // 'X-UserToken': userToken,
+        // Cookie: 'JSESSIONID='+JSESSIONID
       },
       // dummy phrase - eventually pass in what user typed in the WA widget. 
       data: JSON.stringify({message: 'start live agent conversation'})
@@ -127,6 +129,26 @@ const postMessage = (clientSessionId, message, config) => {
   });
 };
 
+const endSession = (clientSessionId, config) => {
+  const group_id = clientSessionId;
+  const authentication = Buffer.from(config.servicenow.username+':'+config.servicenow.password).toString('base64')
+  return new Promise((resolve) => {
+    const options = {
+      method: 'POST',
+      url: `${config.servicenow.apiUri}/api/now/connect/support/sessions/${group_id}/leave`,
+      headers: {
+        Authorization: 'Basic '+authentication,
+        Accept: 'application/json', 'Content-Type': 'application/json'
+      },
+      data: JSON.stringify({})
+    };
+
+    makeRequest(options).then((output) => {
+      return resolve(output);
+    });
+  });
+};
+
 const getQueue = async (config) => {
   const authentication = Buffer.from(config.servicenow.username+':'+config.servicenow.password).toString('base64')
   return new Promise((resolve) => {
@@ -166,4 +188,4 @@ const getAuth = (config) => {
   });
 };
 
-export {postMessage, getMessage, startMessage, getQueue}
+export {postMessage, getMessage, startMessage, getQueue, endSession}

@@ -46,8 +46,8 @@ interface User {
    * A unique identifier for this user.
    */
   id: string;
-
-  nickname: string;
+  // consider whether user should have nickname
+  // nickname: string;
 }
 
 export { AgentProfile, User};

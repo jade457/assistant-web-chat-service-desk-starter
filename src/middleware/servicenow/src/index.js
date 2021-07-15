@@ -25,7 +25,7 @@ import http from 'http';
 import nocache from 'nocache';
 import R from 'ramda';
 import {configParameters} from './config.js';
-import {getMessage, postMessage, startMessage, getQueue} from './servicenow.js';
+import {getMessage, postMessage, startMessage, getQueue, endSession} from './servicenow.js';
 
 const app = express();
 var output = {};
@@ -57,19 +57,61 @@ app.get('/helloworld', async (req, res) => {
   return res.send("Hello World!");
 });
 
+app.post('/servicenow/messageresponse', async (req, res) => {
+  console.log('POST /servicenow/messageresponse');
+  var now = new Date();
+  console.log(now.toLocaleString());
+  // console.log(req);
+   const iterator = {};
+
+   //console.log(req)
+   if (Object.keys(req.body).length === 0){
+    output = {}
+    console.log("empty request posted -- cleared.")
+    console.log(output);
+    return res.status(200).json(output);
+   }else{
+    iterator.clientSessionId = req.clientSessionId;
+    iterator.messages = req.body.body;
+    iterator.userId = req.body.userId;
+  
+    const allmessages = [];
+    const messages = [];
+  
+    for (let i = 0; i < iterator.messages.length; i++){
+      let message = iterator.messages[i];
+         const servicenow = message;
+         allmessages.push(servicenow);
+         const Text = servicenow.uiType === 'OutputText';
+         // when AGENT is configured this may change. 
+         if (Text) {
+           messages.push(servicenow.value);
+         }
+    }
+  
+      output = {
+        status: 'posted',
+        clientSessionId: iterator.clientSessionId,
+        userId: iterator.userId,
+        messages: messages
+     }
+     console.log("all output from ServiceNow: ")
+     console.log(allmessages);
+     console.log("display messages to user")
+     console.log(output);
+    return res.status(200).json(output);
+   }
+})
+
 
 // SRC: MY APP
 app.post('/servicenow/start', async (req, res) => {
   console.log('/servicenow/start: ')  
-  // retrieve user authentication. 
-  // const authorization = await getAuth(configParameters);
-
-  // if (authorization.error) {
-  //   return res.status(authorization.code).json({ error: authorization.error });
-  // }
+  // const userToken = R.path(['body', 'userToken'], req);
+  // const JSESSIONID = R.path(['body', 'JSESSIONID'], req);
 
   const response = await startMessage(configParameters);
-  console.log(response)
+  console.log(response);
 
   // double check what this would look like. 
   if (response.error){
@@ -188,10 +230,9 @@ app.post('/servicenow/end', async (req, res) => {
 
   const clientSessionId = R.path(['body', 'clientSessionId'], req);
   // const label = R.path(['body', 'label'], req);
-  const message = R.path(['body', 'message'], req);
   // const token = R.path(['body', 'token'], req);
 
-  const result = await postMessage(clientSessionId, message, configParameters);
+  const result = await endSession(clientSessionId, configParameters);
   console.log(result);
   if (result.error) {
     return res.status(result.code).json({ error: result.error });

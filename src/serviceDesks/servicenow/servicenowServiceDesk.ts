@@ -3,7 +3,6 @@ import { User } from '../../types/profiles';
 import { ServiceDesk, ServiceDeskFactoryParameters, ServiceDeskStateFromWAC } from '../../types/serviceDesk';
 import { AgentProfile, ServiceDeskCallback } from '../../types/serviceDeskCallback';
 import { ServicenowSession } from './servicenowTypes';
-// import { ServicenowStatus } from './servicenowStatus';
 import { ErrorType } from '../../types/errors';
 import { stringToMessageResponseFormat } from '../../utils';
 import { SingleEntryPlugin } from 'webpack';
@@ -15,11 +14,13 @@ class ServicenowServiceDesk implements ServiceDesk {
   state: any;
 
   // will be overwritten with approrpriate user credentials. 
-  user: User = { id: 'guest-1', nickname: 'Guest (user nickname)'};
+  user: User = { id: 'guest-1'};
   session: ServicenowSession = {clientSessionId: '', currCount: 0, prevCount: 0};
+  // session: ServicenowSession = {clientSessionId: '', currCount: 0, prevCount: 0, userToken: window.g_ck, JSESSIONID: xxx};
   agent: AgentProfile = { id: 'liveagent', nickname: 'Live Agent' };
-  private poller: {stop: boolean};
 
+  agentEndedChat: boolean;
+  private poller: {stop: boolean};
   private SERVER_BASE_URL: string = process.env.SERVER_BASE_URL || 'http://localhost:3000';
 
   constructor(parameters: ServiceDeskFactoryParameters) {
@@ -37,7 +38,6 @@ class ServicenowServiceDesk implements ServiceDesk {
 
     const response = await request.json();
     if (response.error){
-      // double check what the error would look like from servicenow. 
       this.callback.setErrorStatus({ type: ErrorType.DISCONNECTED, isDisconnected: true });
     }else{
       this.session.clientSessionId = response.result.group;
@@ -56,21 +56,25 @@ class ServicenowServiceDesk implements ServiceDesk {
 
   async endChat(): Promise<void> {
     console.log('endChat');
+    console.log('this.agentEndedChat: ' + this.agentEndedChat);
     if (this.poller) {
       this.poller.stop = true;
       this.poller = undefined;
     }
 
-    const request = await fetch(`${this.SERVER_BASE_URL}/servicenow/end`, {
-      method: 'POST',
-      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...this.session, message: "", label: this.user.id}),
-    });
-    const status = await request.json();
-    console.log(status);
+    // if user ended the chat 
+    if (!this.agentEndedChat){
+      const request = await fetch(`${this.SERVER_BASE_URL}/servicenow/end`, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...this.session}),
+      });
+      const status = await request.json();
+      console.log(status);
 
-    if (status.error){
-      this.callback.setErrorStatus({ type: ErrorType.DISCONNECTED, isDisconnected: true });
+      if (status.error){
+        this.callback.setErrorStatus({ type: ErrorType.DISCONNECTED, isDisconnected: true });
+      }
     }
 
     return Promise.resolve();
@@ -98,8 +102,7 @@ class ServicenowServiceDesk implements ServiceDesk {
     const poller = { stop: false };
     this.poller = poller;
     let cacheDate = new Date('1900-06-25 16:03:33');
-    // let prevNMsgs = 0;
-    // let currNMsgs = 0;
+    this.agentEndedChat = false;
     
     do {
       try {
@@ -147,6 +150,7 @@ class ServicenowServiceDesk implements ServiceDesk {
             }
             break;
           case 'Disconnected':
+            this.agentEndedChat = true;
             this.callback.agentEndedChat();
             poller.stop = true;
             break;
@@ -155,18 +159,23 @@ class ServicenowServiceDesk implements ServiceDesk {
         }
       }
 
+      console.log("this.agentEndedChat (polling): " + this.agentEndedChat);
+
         
         // If there are new messages from agent, relay to user
-        if (output.messages?.length > 0) {
-          let latestDate = new Date(output.response[0].created_on);
-          if (latestDate > cacheDate){
-            for (let i = 0; i < output.messages.length; i++) {
-              if (new Date(output.response[i].created_on) > cacheDate){
-              this.callback.sendMessageToUser(stringToMessageResponseFormat(output.messages[i]), this.agent.id);
+
+          if (output.messages?.length > 0) {
+            let latestDate = new Date(output.response[0].created_on);
+            if (latestDate > cacheDate){
+              for (let i = 0; i < output.messages.length; i++) {
+                if (new Date(output.response[i].created_on) > cacheDate){
+                  if (output.status != 'Disconnected'){
+                    this.callback.sendMessageToUser(stringToMessageResponseFormat(output.messages[i]), this.agent.id);
+                  }
                 }
+              }
             }
           }
-        }
 
         cacheDate = new Date(output.response[0].created_on);
 
@@ -182,9 +191,7 @@ class ServicenowServiceDesk implements ServiceDesk {
         if (output.clientSessionId) {
           this.session.clientSessionId = output.clientSessionId;
         }
-
         
-        // await new Promise(r => setTimeout(r, 1000));
       } catch (error) {
         this.callback.setErrorStatus({ type: ErrorType.DISCONNECTED, isDisconnected: true });
         poller.stop = true;
