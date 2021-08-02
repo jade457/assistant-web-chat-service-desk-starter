@@ -107,10 +107,14 @@ app.post('/servicenow/messageresponse', async (req, res) => {
 // SRC: MY APP
 app.post('/servicenow/start', async (req, res) => {
   console.log('/servicenow/start: ')  
+
+  const username = R.path(['body', 'username'], req);
+  const email = R.path(['body', 'email'], req);
+  const name = R.path(['body', 'name'], req);
   // const userToken = R.path(['body', 'userToken'], req);
   // const JSESSIONID = R.path(['body', 'JSESSIONID'], req);
 
-  const response = await startMessage(configParameters);
+  const response = await startMessage(configParameters, username, email, name);
   console.log(response);
 
   // double check what this would look like. 

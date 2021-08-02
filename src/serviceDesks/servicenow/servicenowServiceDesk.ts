@@ -33,7 +33,7 @@ class ServicenowServiceDesk implements ServiceDesk {
     const request = await fetch(`${this.SERVER_BASE_URL}/servicenow/start`, {
       method: 'POST',
       headers: { Accept: 'application/json', 'Content-Type': 'application/json'},
-      body: JSON.stringify(this.session)
+      body: JSON.stringify({...this.session, username: window.username, email: window.email, name: window.name})
     });
 
     const response = await request.json();

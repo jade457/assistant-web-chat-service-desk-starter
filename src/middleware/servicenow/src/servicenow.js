@@ -68,7 +68,11 @@ const getSession = (token, config) => {
   });
 };
 
-const startMessage = (config) => {
+const startMessage = (config, username, email, name) => {
+  console.log("USERNAME: " + username);
+  console.log("EMAIL: " + email);
+  console.log("NAME: " + name);
+  const message = "username: " +  username + "\nemail: " + email + "\nname: " + name;
   const authentication = Buffer.from(config.servicenow.username+':'+config.servicenow.password).toString('base64')
   return new Promise((resolve) => {
     const options = {
@@ -76,12 +80,10 @@ const startMessage = (config) => {
       url: `${config.servicenow.apiUri}/api/now/connect/support/queues/${config.servicenow.queueId}/sessions`,
       headers: {
         Authorization: 'Basic '+authentication,
-        Accept: 'application/json', 'Content-Type': 'application/json',
-        // 'X-UserToken': userToken,
-        // Cookie: 'JSESSIONID='+JSESSIONID
+        Accept: 'application/json', 'Content-Type': 'application/json'
       },
       // dummy phrase - eventually pass in what user typed in the WA widget. 
-      data: JSON.stringify({message: 'start live agent conversation'})
+      data: JSON.stringify({message: message})
     }
 
     makeRequest(options).then((output) => {
