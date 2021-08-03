@@ -3,7 +3,7 @@
 A starter kit for building custom service integrations for Watson Assistant web chat. This starter kit requires web chat version 3.0.0 or above.
 
 ## SERVICENOW HUIT instructions
-1. Just run `npm run build`, and `dist/servicedesk.bundle.js` is generated. Embed this file in the dependency for the HU Footer widget. (We want to make sure that this is *before* the web chat embed script, and it will make `window.WebChatServiceDeskFactory` available for use.)
+1. Just run `npm run build`, and `dist/servicedesk.bundle.js` is generated. Embed this file (copy and paste) in the dependency for the HU Footer widget. (We want to make sure that this is *before* the web chat embed script, and it will make `window.WebChatServiceDeskFactory` available for use.)
 
 ## Overview
 
