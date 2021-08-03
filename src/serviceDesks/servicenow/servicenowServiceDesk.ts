@@ -29,7 +29,7 @@ class ServicenowServiceDesk implements ServiceDesk {
 
 
   async startChat(connectMessage: MessageResponse): Promise<void> {
-    console.log("startChat");
+    // console.log("startChat");
     const request = await fetch(`${this.SERVER_BASE_URL}/servicenow/start`, {
       method: 'POST',
       headers: { Accept: 'application/json', 'Content-Type': 'application/json'},
@@ -55,8 +55,8 @@ class ServicenowServiceDesk implements ServiceDesk {
   }
 
   async endChat(): Promise<void> {
-    console.log('endChat');
-    console.log('this.agentEndedChat: ' + this.agentEndedChat);
+    // console.log('endChat');
+    // console.log('this.agentEndedChat: ' + this.agentEndedChat);
     if (this.poller) {
       this.poller.stop = true;
       this.poller = undefined;
@@ -70,7 +70,7 @@ class ServicenowServiceDesk implements ServiceDesk {
         body: JSON.stringify({ ...this.session}),
       });
       const status = await request.json();
-      console.log(status);
+      // console.log(status);
 
       if (status.error){
         this.callback.setErrorStatus({ type: ErrorType.DISCONNECTED, isDisconnected: true });
@@ -81,14 +81,14 @@ class ServicenowServiceDesk implements ServiceDesk {
   }
 
   async sendMessageToAgent(message: MessageRequest, messageID: string): Promise<void> {
-    console.log('sendMessageToAgent')
+    // console.log('sendMessageToAgent')
     const request = await fetch(`${this.SERVER_BASE_URL}/servicenow/sendmessage`, {
       method: 'POST',
       headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...this.session, message: message.input.text, label: this.user.id}),
     });
     const response = await request.json();
-    console.log(response);
+    // console.log(response);
 
     return Promise.resolve();
   }
@@ -98,7 +98,7 @@ class ServicenowServiceDesk implements ServiceDesk {
   }
 
   private async startPolling(): Promise<void> {
-    console.log("started polling.")
+    // console.log("started polling.")
     const poller = { stop: false };
     this.poller = poller;
     let cacheDate = new Date('1900-06-25 16:03:33');
@@ -117,11 +117,11 @@ class ServicenowServiceDesk implements ServiceDesk {
         const output = await request.json();
         this.session.currCount = output.currCount;
         this.session.prevCount = output.prevCount;
-        console.log("******FINISHED POST RETRIEVAL REQUEST***********")
-        console.log("/servicenow/get output: ");
-        console.log(output);
-        console.log("currCount: " + output.currCount + ", prevCount: " + output.prevCount);
-        console.log("output.status: " + output.status);
+        // console.log("******FINISHED POST RETRIEVAL REQUEST***********")
+        // console.log("/servicenow/get output: ");
+        // console.log(output);
+        // console.log("currCount: " + output.currCount + ", prevCount: " + output.prevCount);
+        // console.log("output.status: " + output.status);
 
 
         if (output.status){
@@ -138,7 +138,7 @@ class ServicenowServiceDesk implements ServiceDesk {
                 body: JSON.stringify(this.session),
               });
               const output = await request.json();
-              console.log('queue: ' + output.queue);
+              // console.log('queue: ' + output.queue);
               if (output.queue !== undefined) {
                 // Add one since queue value is 0 when there is no line
                 //this.callback.updateAgentAvailability({ position_in_queue: output.queue + 1 });
@@ -159,7 +159,8 @@ class ServicenowServiceDesk implements ServiceDesk {
         }
       }
 
-      console.log("this.agentEndedChat (polling): " + this.agentEndedChat);
+      // console.log("this.agentEndedChat (polling): " + this.agentEndedChat);
+      // console.log("output.status: " + output.status);
 
         
         // If there are new messages from agent, relay to user
@@ -169,7 +170,8 @@ class ServicenowServiceDesk implements ServiceDesk {
             if (latestDate > cacheDate){
               for (let i = 0; i < output.messages.length; i++) {
                 if (new Date(output.response[i].created_on) > cacheDate){
-                  if (output.status != 'Disconnected'){
+
+                  if (output.status != 'Disconnected' && output.status != 'Waiting'){
                     this.callback.sendMessageToUser(stringToMessageResponseFormat(output.messages[i]), this.agent.id);
                   }
                 }

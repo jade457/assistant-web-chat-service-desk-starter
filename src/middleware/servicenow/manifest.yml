@@ -1,5 +1,5 @@
 applications:
-- name: harvard-live-chat
+- name: harvard-live-chat-prod
   routes: 
-- route: harvard-live-chat.mybluemix.net
+- route: harvard-live-chat-prod.mybluemix.net
   memory:  64M
